@@ -37,7 +37,7 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          pytest test.py
+          pytest test_app.py
 
   # JOB 2: DELIVERY (CD)
   # This job simulates deployment. Runs only if integration passes
