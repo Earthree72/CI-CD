@@ -1,30 +1,52 @@
-# test.py
 import pytest
 from main import app
 
 @pytest.fixture
 def client():
-    app.config['TESTING'] = True
+    app.config["TESTING"] = True
+    app.config["SECRET_KEY"] = "test-secret"
     with app.test_client() as client:
+        with client.session_transaction() as sess:
+            sess.clear()  # Clear session before each test
         yield client
 
-def test_read_main(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.get_json() == {"status": "ok", "version": "1.0.0"}
+# ---------------------------
+# TEST LOGIN FUNCTION
+# ---------------------------
 
-def test_addition_logic(client):
-    """
-    Test the math endpoint to ensure logic holds.
-    """
-    response = client.get("/add/5/10")
+def test_login_success(client):
+    response = client.post("/login", json={
+        "username": "admin",
+        "password": "password123"
+    })
     assert response.status_code == 200
-    assert response.get_json() == {"result": 15}
+    assert response.get_json() == {"message": "Login successful"}
 
-def test_invalid_input(client):
-    """
-    Test that sending text instead of integers results in 404 (Flask behavior).
-    """
-    response = client.get("/add/five/ten")
-    # Flask returns 404 if the route type <int:> doesn't match, unlike FastAPI's 422
-    assert response.status_code == 404
+def test_login_fail(client):
+    response = client.post("/login", json={
+        "username": "admin",
+        "password": "wrongpass"
+    })
+    assert response.status_code == 401
+    assert response.get_json() == {"error": "Invalid credentials"}
+
+# ---------------------------
+# TEST SUBTRACT FUNCTION
+# ---------------------------
+
+def test_subtract_without_login(client):
+    response = client.get("/subtract/10/3")
+    assert response.status_code == 401
+    assert "Unauthorized" in response.get_json()["error"]
+
+def test_subtract_with_login(client):
+    # First log in
+    client.post("/login", json={
+        "username": "admin",
+        "password": "password123"
+    })
+
+    # Now subtract
+    response = client.get("/subtract/10/3")
+    assert response.status_code == 200
+    assert response.get_json() == {"result": 7}
